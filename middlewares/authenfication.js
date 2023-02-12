@@ -2,8 +2,8 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const authentification = async (req, res, next) => {
   try {
+    console.log("step", req.headers);
     const authToken = req.headers.authorization.replace("Bearer ", "");
-
     const decodeToken = jwt.verify(authToken, process.env.SECRET_KEY);
 
     const user = await User.findOne({
@@ -16,7 +16,7 @@ const authentification = async (req, res, next) => {
   } catch (error) {
     res
       .status(401)
-      .json({ status: "Error", message: "Please authenticate yourself!" });
+      .json({ status: "Error", error: "Please authenticate yourself!" });
   }
 };
 

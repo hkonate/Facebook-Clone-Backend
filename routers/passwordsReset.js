@@ -2,70 +2,76 @@ const express = require("express");
 const router = express.Router();
 const Password = require("../utils/otpPasswordReset");
 const PasswordReset = require("../models/PasswordReset");
-const validator = require("validator");
-const User = require("../models/User");
-const bcrypt = require("bcryptjs");
+
+//RESET PASSWORD
 
 router.post("/password/Reset", (req, res) => {
   try {
     const { email } = req.body;
-    if (!email) throw new Error("Empty email are not allowed");
+    if (!email)
+      res.status(400).json({
+        status: "Bad Request",
+        message: "Empty email are not allowed",
+      });
 
     Password.sendOtpPasswordReset(email, res);
   } catch (error) {
-    res.status(400).json({
+    res.status(500).json({
       status: "ERROR",
       message: error.message,
     });
   }
 });
 
+//ADD NEW PASSWORD
+
 router.post("/newPassword", async (req, res) => {
   try {
-    const { otp, email, password, confirmPassword } = req.body;
-    if (!otp || !email || !password || !confirmPassword)
-      throw new Error("Empty field are not allowed");
-    if (!validator.equals(confirmPassword, password))
-      throw new Error("Your passwords must be the same !");
-    const passwordReset = await PasswordReset.findOne({ email });
-    if (!passwordReset) throw new Error("This account does not exist");
-    if (passwordReset.expiredAt < Date.now())
-      throw new Error("Your otp have expired");
-    const isOtpValid = await bcrypt.compare(otp, passwordReset.otp);
-    if (!isOtpValid) throw new Error("Invalid otp are not allowed");
-    const user = await User.findOne({ email });
-    user.password = password;
-    const error = user.validateSync();
-    if (error) {
+    const { otp, id, password, confirmPassword } = req.body;
+    if (!otp || !id || !password || !confirmPassword)
       res.status(400).json({
-        status: "ERROR",
-        message: error,
+        status: "Bad Request",
+        message: "Empty field are not allowed",
       });
-    } else {
-      await PasswordReset.deleteOne({ email: user.email });
-      await user.save();
-      res.status(200).json({
-        status: "SUCCEED",
-        message: "Password updated",
-        data: user,
-      });
-    }
+
+    const user = await PasswordReset.verifyOtpAndChangePassword(
+      otp,
+      id,
+      password,
+      confirmPassword,
+      res
+    );
+    await user.save();
+
+    await PasswordReset.deleteMany({ email: user.email });
+
+    res.status(200).json({
+      status: "SUCCEED",
+      message: "Password updated",
+      data: user,
+    });
   } catch (error) {
-    res.status(400).json({
+    res.status(500).json({
       status: "ERROR",
       message: error.message,
     });
   }
 });
+
+//RESEND OTP FOR PASSWORD
 
 router.post("/password/otpResend", async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email) throw new Error("Empty email is not allowed");
+    if (!email)
+      res.status(400).json({
+        status: "Bad Request",
+        message: "Empty field are not allowed",
+      });
     await PasswordReset.deleteMany({ email });
     Password.sendOtpPasswordReset(email, res);
   } catch (error) {
-    res.status(400).json({
+    res.status(500).json({
       status: "ERROR",
       message: error.message,
     });

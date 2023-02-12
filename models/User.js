@@ -69,15 +69,15 @@ const userSchema = new mongoose.Schema(
     },
     desc: {
       type: String,
-      max: 50,
+      maxLength: 50,
     },
     city: {
       type: String,
-      max: 50,
+      maxLength: 50,
     },
     from: {
       type: String,
-      max: 50,
+      maxLength: 50,
     },
     isAdmin: {
       type: Boolean,
@@ -107,18 +107,20 @@ userSchema.methods.toJSON = function () {
   //filter and secure response that are sent to the user
   const user = this.toObject();
 
-  delete user.firstname;
-  delete user.lastname;
-  delete user.age;
+  delete user.password;
+  delete user.email;
+  delete user.updatedAt;
+  delete user.authTokens;
   delete user.__v;
-  delete user._id;
 
   return user;
 };
 
 userSchema.pre("save", async function () {
-  if (this.isModified("password"))
-    this.password = await bcrypt.hash(this.password, 8);
+  if (this.isModified("password")) {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+  }
 });
 
 userSchema.methods.generateAuthTokenAndSaveUser = async function () {

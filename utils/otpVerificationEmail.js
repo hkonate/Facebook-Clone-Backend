@@ -23,26 +23,25 @@ module.exports.sendOtpVerification = async (email, res) => {
       html: `<p>Enter ${otp} in the app to verify your email address and complete the signup<p>
                 <p>this code expires in 1 hours<p>`,
     };
-    const hashedOtp = await bcrypt.hash(otp.toString(), 10);
+    const salt = await bcrypt.genSalt(10);
+    const hashedOtp = await bcrypt.hash(otp.toString(), salt);
 
-    const newOpt = await new optVerification({
+    const newOtp = await new optVerification({
       email,
-      opt: hashedOtp,
+      otp: hashedOtp,
       createdAt: Date.now(),
     });
-    await newOpt.save();
+    await newOtp.save();
 
     await transporter.sendMail(mailOptions);
 
     res.status(202).json({
       status: "PENDING",
       message: "Verification otp email sent",
-      data: {
-        email,
-      },
+      data: newOtp,
     });
   } catch (error) {
-    res.status(400).json({
+    res.status(500).json({
       status: "ERROR",
       message: error.message,
     });

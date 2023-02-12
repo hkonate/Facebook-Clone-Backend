@@ -10,6 +10,7 @@ mongoose.connect(process.env.MONGODB_URL);
 const port = process.env.Port || 3000;
 
 app.use(express.json());
+
 const usersRouter = require("./routers/users");
 app.use(usersRouter);
 
@@ -18,6 +19,9 @@ app.use(emailsVerificationsRouter);
 
 const passwordResetRouter = require("./routers/passwordsReset");
 app.use(passwordResetRouter);
+
+const authRouter = require("./routers/auth");
+app.use(authRouter);
 
 app.get("/", (req, res) => {
   res.send("Bienvenue sur mon API ECOM");

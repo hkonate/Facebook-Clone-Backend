@@ -6,8 +6,18 @@ const User = require("../models/User");
 
 module.exports.sendOtpPasswordReset = async (email, res) => {
   try {
+    if (!email)
+      res.status(400).json({
+        status: "Bad Request",
+        message: "Empty fields are not allowed",
+      });
+
     const user = await User.findOne({ email });
-    if (!user) throw new Error("This account does not exist");
+    if (!user)
+      res.status(404).json({
+        status: "Not Found",
+        message: "This account does not exist",
+      });
 
     let transporter = nodemailer.createTransport({
       service: "gmail",
@@ -29,8 +39,8 @@ module.exports.sendOtpPasswordReset = async (email, res) => {
       html: `<p>Enter ${otp} in the app in order to reset your password</p>
         <p>this code expires in 1 hour</p>`,
     };
-
-    const hashedOtp = await bcrypt.hash(otp.toString(), 10);
+    const salt = await bcrypt.genSalt(10);
+    const hashedOtp = await bcrypt.hash(otp.toString(), salt);
     const passwordReset = await new PasswordReset({
       email,
       otp: hashedOtp,
@@ -44,7 +54,7 @@ module.exports.sendOtpPasswordReset = async (email, res) => {
       data: passwordReset,
     });
   } catch (error) {
-    res.status(400).json({
+    res.status(500).json({
       status: "ERROR",
       message: error.message,
     });

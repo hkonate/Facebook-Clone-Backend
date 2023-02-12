@@ -2,49 +2,44 @@ const express = require("express");
 const User = require("../models/User");
 const authentification = require("../middlewares/authenfication");
 const router = new express.Router();
-const Email = require("../utils/otpVerificationEmail");
-const validator = require("validator");
 
-router.post("/user", async (req, res) => {
+//GET USER
+
+router.get("/user", authentification, (req, res) => {
   try {
-    if (!validator.equals(req.body.confirmPassword, req.body.password))
-      throw new Error("Your passwords must be the same !");
-    delete req.body.confirmPassword;
-    const user = new User(req.body);
-    let error = user.validateSync();
-    if (error) {
-      res.status(400).json({
-        status: "ERROR",
-        message: error,
-      });
-    } else {
-      user.verified = false;
-      await user.save();
-      Email.sendOtpVerification(user.email, res);
-    }
+    res.status(200).json({
+      message: "SUCCEED",
+      data: req.user,
+    });
   } catch (error) {
-    res.status(400).json({
+    res.status(500).json({
       status: "ERROR",
-      message: error.message,
+      error: error.message,
     });
   }
 });
 
-router.post("/user/login", async (req, res) => {
+//GET ALL USERS
+
+router.get("/users", authentification, async (req, res) => {
   try {
-    const user = await User.findUser(req.body.email, req.body.password);
-    const authToken = user.generateAuthTokenAndSaveUser();
+    const users = (await User.find()).filter(
+      (user) => user._id === req.user._id && !user.verified
+    );
     res.status(200).json({
       status: "SUCCEED",
-      data: { user, authToken },
+      count: users.length,
+      data: users,
     });
   } catch (error) {
-    res.status(400).json({
-      status: "ERROR",
-      message: error.message,
+    res.status(500).json({
+      message: "ERROR",
+      error: error.message,
     });
   }
 });
+
+//UPDATE USER INFOS
 
 router.patch("/user/update", authentification, async (req, res) => {
   const uptadeInfo = Object.keys(req.body);
@@ -56,61 +51,94 @@ router.patch("/user/update", authentification, async (req, res) => {
       data: req.user,
     });
   } catch (error) {
-    res.status(400).json({
+    res.status(500).json({
       status: "ERROR",
-      message: error.message,
+      error: error.message,
     });
   }
 });
 
-router.post("/user/logout", authentification, async (req, res) => {
+//FOLLOW OR UNFOLLOW AN USER
+
+router.patch("/user/connections", authentification, async (req, res) => {
   try {
-    req.user.authTokens = req.user.authTokens.filter(
-      (authToken) => authToken.authToken !== req.authToken
-    );
-    req.user.save();
+    const { id, action } = req.body;
+    const user = req.user;
+    if (!id || (action !== "follow" && action !== "unfollow"))
+      res.status(400).json({
+        status: "Bad Request",
+        message: "Invalid requests are not allowed",
+      });
+    else if (id === user._id.toString())
+      res.status(405).json({
+        status: "Method Not Allowed",
+        message: `User cannot ${action} himself`,
+      });
+    else {
+      const otherUser = await User.findById(id);
+      if (!otherUser)
+        res
+          .status(404)
+          .json({ status: "Not Found", message: "False id are not allowed" });
+      else if (!otherUser.verified)
+        res.status(405).json({
+          status: "Method Not Allowed",
+          message: "Account not verify",
+        });
+      else if (
+        ((user.followings.indexOf(id) !== -1 ||
+          otherUser.followers.indexOf(user._id.toString()) !== -1) &&
+          action === "follow") ||
+        ((user.followings.indexOf(id) === -1 ||
+          otherUser.followers.indexOf(user._id.toString()) === -1) &&
+          action === "unfollow")
+      )
+        res.status(405).json({
+          status: "Method Not Allowed",
+          message: `You cannot ${action} twice`,
+        });
+      else {
+        if (action === "follow") {
+          await user.followings.push(id);
+          await otherUser.followers.push(user._id);
+        } else {
+          await user.followings.filter((following) => following === id);
+          await otherUser.followers.filter((follower) => follower === user._id);
+        }
+        await user.save();
+        await otherUser.save();
+      }
+    }
     res.status(200).json({
-      message: "SUCCEED",
-      data: req.user,
+      status: "SUCCEED",
+      data: user,
     });
   } catch (error) {
-    res.status(400).json({
+    res.status(500).json({
       status: "ERROR",
-      message: error.message,
+      error: error.message,
     });
   }
 });
 
-router.post("/user/logout/all", authentification, async (req, res) => {
-  try {
-    req.user.authTokens = [];
-    req.user.save();
-    res.status(200).json({
-      message: "SUCCEED",
-      data: req.user,
-    });
-  } catch (error) {
-    res.status(400).json({
-      status: "ERROR",
-      message: error.message,
-    });
-  }
-});
+//DELETE USER'S ACCOUNT
 
 router.delete("/user/delete", authentification, async (req, res) => {
   try {
     await req.user.remove();
-    res.status(400).json({
+    res.status(200).json({
       status: "SUCCEED",
       data: req.user,
     });
   } catch (error) {
-    res.status(400).json({
+    res.status(500).json({
       status: "ERROR",
-      message: error.message,
+      error: error.message,
     });
   }
 });
+
+//DELETE ALL USERS ACCOUNT
 
 router.delete("/users/reset", async (req, res) => {
   try {
@@ -121,7 +149,8 @@ router.delete("/users/reset", async (req, res) => {
       deleteCount: response.deletedCount,
     });
   } catch (error) {
-    res.status(400).json({
+    res.status(500).json({
+      status: "ERROR",
       error: error.message,
     });
   }

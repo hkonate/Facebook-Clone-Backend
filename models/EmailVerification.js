@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-const nodemailer = require("nodemailer");
 const bcrypt = require("bcryptjs");
 const EmailVerificationSchema = new mongoose.Schema({
   email: {
@@ -27,6 +26,55 @@ const EmailVerificationSchema = new mongoose.Schema({
     required: true,
   },
 });
+
+EmailVerificationSchema.methods.toJSON = function () {
+  const emailVerification = this.toObject();
+  delete emailVerification.__v;
+  delete emailVerification.otp;
+
+  return emailVerification;
+};
+
+EmailVerificationSchema.statics.activateAccount = async (id, otp, res) => {
+  try {
+    const emailToVerification = await EmailVerification.findById(id);
+    if (!emailToVerification)
+      res
+        .status(404)
+        .json({ status: "Not Found", message: "False id are not allowed" });
+
+    const user = await User.findOne({ email: emailToVerification.email });
+    if (user.verified) res.status(204).json();
+
+    const isOtpValid = await bcrypt.compare(otp, emailToVerification.otp);
+    if (!isOtpValid)
+      res.status(404).json({
+        status: "Not Found",
+        message: "False otp code are not allowed",
+      });
+
+    if (emailToVerification.expiredAt < Date.now())
+      res.status(410).json({
+        status: "GONE",
+        message: "Your otp code expired",
+      });
+
+    user.verified = true;
+    const response = await EmailVerification.deleteMany({
+      email: emailToVerification.email,
+    });
+    const data = {
+      user,
+      deleteCount: response.deletedCount,
+    };
+    return data;
+  } catch (error) {
+    res.status(500).json({
+      status: "ERROR",
+      error: error.message,
+    });
+  }
+};
 
 const EmailVerification = mongoose.model(
   "EmailVerification",
