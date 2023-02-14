@@ -11,6 +11,9 @@ const port = process.env.Port || 3000;
 
 app.use(express.json());
 
+const authRouter = require("./routers/auth");
+app.use(authRouter);
+
 const usersRouter = require("./routers/users");
 app.use(usersRouter);
 
@@ -20,8 +23,8 @@ app.use(emailsVerificationsRouter);
 const passwordResetRouter = require("./routers/passwordsReset");
 app.use(passwordResetRouter);
 
-const authRouter = require("./routers/auth");
-app.use(authRouter);
+const postRouter = require("./routers/posts");
+app.use(postRouter);
 
 app.get("/", (req, res) => {
   res.send("Bienvenue sur mon API ECOM");

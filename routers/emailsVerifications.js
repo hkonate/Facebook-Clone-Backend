@@ -3,11 +3,17 @@ const router = new express.Router();
 const EmailVerification = require("../models/EmailVerification");
 const User = require("../models/User");
 const Email = require("../utils/otpVerificationEmail");
+const Checker = require("../utils/controlRequest");
 
 //ACTIVATE ACCOUNT
 
 router.post("/otpVerification", async (req, res) => {
   try {
+    if (!Checker.controlRequest(req.body, ["otp", "id"]))
+      res.status(400).json({
+        status: "Bad Request",
+        message: "Wrong format are not allowed",
+      });
     const { otp, id } = req.body;
     if (!otp || !id)
       res.status(400).json({
@@ -40,6 +46,11 @@ router.post("/otpVerification", async (req, res) => {
 
 router.post("/otpResend", async (req, res) => {
   try {
+    if (!Checker.controlRequest(req.body, ["email"]))
+      res.status(400).json({
+        status: "Bad Request",
+        message: "Wrong format are not allowed",
+      });
     const { email } = req.body;
     if (!email)
       res.status(400).json({

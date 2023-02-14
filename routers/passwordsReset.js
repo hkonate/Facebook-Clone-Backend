@@ -2,11 +2,17 @@ const express = require("express");
 const router = express.Router();
 const Password = require("../utils/otpPasswordReset");
 const PasswordReset = require("../models/PasswordReset");
+const Checker = require("../utils/controlRequest");
 
 //RESET PASSWORD
 
 router.post("/password/Reset", (req, res) => {
   try {
+    if (!Checker.controlRequest(req.body, ["email"]))
+      res.status(400).json({
+        status: "Bad Request",
+        message: "Wrong format are not allowed",
+      });
     const { email } = req.body;
     if (!email)
       res.status(400).json({
@@ -27,6 +33,18 @@ router.post("/password/Reset", (req, res) => {
 
 router.post("/newPassword", async (req, res) => {
   try {
+    if (
+      !Checker.controlRequest(req.body, [
+        "otp",
+        "id",
+        "password",
+        "confirmPassword",
+      ])
+    )
+      res.status(400).json({
+        status: "Bad Request",
+        message: "Wrong format are not allowed",
+      });
     const { otp, id, password, confirmPassword } = req.body;
     if (!otp || !id || !password || !confirmPassword)
       res.status(400).json({
@@ -62,6 +80,11 @@ router.post("/newPassword", async (req, res) => {
 
 router.post("/password/otpResend", async (req, res) => {
   try {
+    if (!Checker.controlRequest(req.body, ["email"]))
+      res.status(400).json({
+        status: "Bad Request",
+        message: "Wrong format are not allowed",
+      });
     const { email } = req.body;
     if (!email)
       res.status(400).json({

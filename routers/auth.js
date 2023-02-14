@@ -3,12 +3,31 @@ const router = new express.Router();
 const User = require("../models/User");
 const Email = require("../utils/otpVerificationEmail");
 const validator = require("validator");
-const authentification = require("../middlewares/authenfication");
+const authentification = require("../middlewares/authentification");
+const Checker = require("../utils/controlRequest");
 
 //REGISTER ACCOUNT
 
 router.post("/register", async (req, res) => {
   try {
+    if (
+      !Checker.controlRequest(req.body, [
+        "from",
+        "city",
+        "firstname",
+        "lastname",
+        "age",
+        "password",
+        "email",
+        "profilePicture",
+        "coverPicture",
+      ])
+    )
+      res.status(400).json({
+        status: "Bad Request",
+        message: "Wrong format are not allowed",
+      });
+
     if (!validator.equals(req.body.confirmPassword, req.body.password))
       throw new Error("Your passwords must be the same !");
     delete req.body.confirmPassword;
@@ -36,6 +55,11 @@ router.post("/register", async (req, res) => {
 
 router.post("/login", async (req, res) => {
   try {
+    if (!Checker.controlRequest(req.body, ["password", "email"]))
+      res.status(400).json({
+        status: "Bad Request",
+        message: "Wrong format are not allowed",
+      });
     const user = await User.findUser(req.body.email, req.body.password);
     const authToken = user.generateAuthTokenAndSaveUser();
     res.status(200).json({

@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const PostSchema = new mongoose.Schema(
+const postSchema = new mongoose.Schema(
   {
     userId: {
       type: String,
@@ -9,6 +9,7 @@ const PostSchema = new mongoose.Schema(
     desc: {
       type: String,
       maxLength: 500,
+      required: true,
     },
     img: {
       type: String,
@@ -21,4 +22,13 @@ const PostSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model("Post", PostSchema);
+postSchema.methods.toJSON = function () {
+  const post = this.toObject();
+
+  delete post.__v;
+  delete post.updatedAt;
+
+  return post;
+};
+
+module.exports = mongoose.model("Post", postSchema);

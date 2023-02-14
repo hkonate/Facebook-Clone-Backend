@@ -1,7 +1,8 @@
 const express = require("express");
 const User = require("../models/User");
-const authentification = require("../middlewares/authenfication");
+const authentification = require("../middlewares/authentification");
 const router = new express.Router();
+const Checker = require("../utils/controlRequest");
 
 //GET USER
 
@@ -42,9 +43,25 @@ router.get("/users", authentification, async (req, res) => {
 //UPDATE USER INFOS
 
 router.patch("/user/update", authentification, async (req, res) => {
-  const uptadeInfo = Object.keys(req.body);
   try {
-    uptadeInfo.forEach((update) => (req.user[update] = req.body.update));
+    const updateInfo = Object.keys(req.body);
+    if (
+      !Checker.controlRequest(req.body, [
+        "from",
+        "city",
+        "firstname",
+        "lastname",
+        "age",
+        "profilePicture",
+        "coverPicture",
+      ])
+    )
+      res.status(400).json({
+        status: "Bad Request",
+        message: "Wrong format are not allowed",
+      });
+    if (updateInfo.length === 0) res.status(202).json();
+    updateInfo.forEach((update) => (req.user[update] = req.body.update));
     await req.user.save();
     res.status(200).json({
       status: "SUCCEED",
@@ -62,27 +79,33 @@ router.patch("/user/update", authentification, async (req, res) => {
 
 router.patch("/user/connections", authentification, async (req, res) => {
   try {
+    if (!Checker.controlRequest(req.body, ["id", "action"]))
+      res.status(400).json({
+        status: "Bad Request",
+        message: "Wrong format are not allowed",
+      });
     const { id, action } = req.body;
-    const user = req.user;
+    let user = req.user;
     if (!id || (action !== "follow" && action !== "unfollow"))
       res.status(400).json({
         status: "Bad Request",
         message: "Invalid requests are not allowed",
       });
     else if (id === user._id.toString())
-      res.status(405).json({
-        status: "Method Not Allowed",
+      res.status(403).json({
+        status: "FORBIDDEN",
         message: `User cannot ${action} himself`,
       });
     else {
-      const otherUser = await User.findById(id);
+      let otherUser = await User.findById(id);
+      console.log(otherUser, "try");
       if (!otherUser)
         res
           .status(404)
           .json({ status: "Not Found", message: "False id are not allowed" });
       else if (!otherUser.verified)
-        res.status(405).json({
-          status: "Method Not Allowed",
+        res.status(403).json({
+          status: "FORBIDDEN",
           message: "Account not verify",
         });
       else if (
@@ -93,18 +116,22 @@ router.patch("/user/connections", authentification, async (req, res) => {
           otherUser.followers.indexOf(user._id.toString()) === -1) &&
           action === "unfollow")
       )
-        res.status(405).json({
-          status: "Method Not Allowed",
-          message: `You cannot ${action} twice`,
-        });
+        res.status(202).json();
       else {
         if (action === "follow") {
-          await user.followings.push(id);
-          await otherUser.followers.push(user._id);
+          user.followings.push(id);
+          otherUser.followers.push(user._id.toString());
+          await user.save();
+          await otherUser.save();
         } else {
-          await user.followings.filter((following) => following === id);
-          await otherUser.followers.filter((follower) => follower === user._id);
+          user.followings = user.followings.filter(
+            (following) => following !== id
+          );
+          otherUser.followers = otherUser.followers.filter(
+            (follower) => follower !== user._id?.toString()
+          );
         }
+        console.log(user, "hello", otherUser);
         await user.save();
         await otherUser.save();
       }
@@ -140,12 +167,17 @@ router.delete("/user/delete", authentification, async (req, res) => {
 
 //DELETE ALL USERS ACCOUNT
 
-router.delete("/users/reset", async (req, res) => {
+router.delete("/users/reset", authentification, async (req, res) => {
   try {
-    const response = await User.deleteMany({ email: /@/ });
+    if (!req.user.isAdmin)
+      res.status(405).json({
+        status: "Method Not Allowed",
+        message: "You are not allow to delete any ressources",
+      });
 
+    const response = await User.deleteMany({ email: /@/ });
     res.status(200).json({
-      message: "SUCCEED",
+      status: "SUCCEED",
       deleteCount: response.deletedCount,
     });
   } catch (error) {
@@ -154,6 +186,5 @@ router.delete("/users/reset", async (req, res) => {
       error: error.message,
     });
   }
-  res.status;
 });
 module.exports = router;
