@@ -61,6 +61,11 @@ router.post("/login", async (req, res) => {
         message: "Wrong format are not allowed",
       });
     const user = await User.findUser(req.body.email, req.body.password);
+    if (!user.verified)
+      res.status(403).json({
+        status: "FORBIDDEN",
+        message: "This account need to be verify.",
+      });
     const authToken = user.generateAuthTokenAndSaveUser();
     res.status(200).json({
       status: "SUCCEED",
