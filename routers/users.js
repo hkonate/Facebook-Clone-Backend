@@ -98,7 +98,7 @@ router.patch("/user/connections", authentification, async (req, res) => {
       });
     else {
       let otherUser = await User.findById(id);
-      console.log(otherUser, "try");
+
       if (!otherUser)
         res
           .status(404)
@@ -131,7 +131,6 @@ router.patch("/user/connections", authentification, async (req, res) => {
             (follower) => follower !== user._id?.toString()
           );
         }
-        console.log(user, "hello", otherUser);
         await user.save();
         await otherUser.save();
       }
