@@ -7,21 +7,21 @@ const Checker = require("../utils/controlRequest");
 
 //ACTIVATE ACCOUNT
 
-router.post("/otpVerification", async (req, res) => {
+router.post("/otpVerification/:id", async (req, res) => {
   try {
-    if (!Checker.controlRequest(req.body, ["otp", "id"]))
+    if (!Checker.controlRequest(req.body, ["otp"]))
       res.status(400).json({
         status: "Bad Request",
         message: "Wrong format are not allowed",
       });
-    const { otp, id } = req.body;
-    if (!otp || !id)
+    const { otp } = req.body;
+    if (!otp)
       res.status(400).json({
         status: "Bad Request",
         message: "Empty field are not allowed",
       });
     const { user, deleteCount } = await EmailVerification.activateAccount(
-      id,
+      req.params.id,
       otp,
       res
     );
@@ -64,7 +64,7 @@ router.post("/otpResend", async (req, res) => {
         message: "User not found",
       });
     if (user.verified) res.status(204).json();
-    await EmailVerification.deleteMany({ email });
+    await EmailVerification.deleteMany({ email: email });
     Email.sendOtpVerification(email, res);
   } catch (error) {
     res.status(500).json({

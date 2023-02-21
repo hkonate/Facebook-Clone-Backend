@@ -2,7 +2,6 @@ const express = require("express");
 const router = new express.Router();
 const User = require("../models/User");
 const Email = require("../utils/otpVerificationEmail");
-const validator = require("validator");
 const authentification = require("../middlewares/authentification");
 const Checker = require("../utils/controlRequest");
 
@@ -19,6 +18,7 @@ router.post("/register", async (req, res) => {
         "age",
         "password",
         "email",
+        "confirmPassword",
         "profilePicture",
         "coverPicture",
       ])
@@ -28,7 +28,7 @@ router.post("/register", async (req, res) => {
         message: "Wrong format are not allowed",
       });
 
-    if (!validator.equals(req.body.confirmPassword, req.body.password))
+    if (req.body.confirmPassword !== req.body.password)
       throw new Error("Your passwords must be the same !");
     delete req.body.confirmPassword;
     const user = new User(req.body);

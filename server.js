@@ -1,4 +1,5 @@
 const express = require("express");
+const cors = require("cors");
 const app = express();
 require("dotenv").config();
 const mongoose = require("mongoose");
@@ -8,7 +9,7 @@ mongoose.set("strictQuery", true);
 mongoose.connect(process.env.MONGODB_URL);
 
 const port = process.env.Port || 3000;
-
+app.use(cors());
 app.use(express.json());
 
 const authRouter = require("./routers/auth");

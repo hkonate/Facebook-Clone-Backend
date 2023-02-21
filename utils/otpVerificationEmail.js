@@ -16,22 +16,26 @@ module.exports.sendOtpVerification = async (email, res) => {
         rejectUnauthorized: false,
       },
     });
-    const mailOptions = {
-      from: process.env.AUTH_EMAIL,
-      to: email,
-      subject: "Verify Your Email",
-      html: `<p>Enter ${otp} in the app to verify your email address and complete the signup<p>
-                <p>this code expires in 1 hours<p>`,
-    };
+
     const salt = await bcrypt.genSalt(10);
     const hashedOtp = await bcrypt.hash(otp.toString(), salt);
 
-    const newOtp = await new optVerification({
+    const newOtp = new optVerification({
       email,
       otp: hashedOtp,
       createdAt: Date.now(),
     });
     await newOtp.save();
+
+    const mailOptions = {
+      from: process.env.AUTH_EMAIL,
+      to: email,
+      subject: "Verify Your Email",
+      html: `<p>Enter the code ${otp} in the following adress 
+      <a href="http://localhost:3001/verifyAccount/${newOtp._id}">Verification</a>
+        to verify your email address and complete the signup<p>
+                <p>this code expires in 1 hours<p>`,
+    };
 
     await transporter.sendMail(mailOptions);
 
@@ -43,7 +47,7 @@ module.exports.sendOtpVerification = async (email, res) => {
   } catch (error) {
     res.status(500).json({
       status: "ERROR",
-      message: error.message,
+      error: error.message,
     });
   }
 };
