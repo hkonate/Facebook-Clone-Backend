@@ -33,8 +33,9 @@ module.exports.sendOtpVerification = async (email, res) => {
       subject: "Verify Your Email",
       html: `<p>Enter the code ${otp} in the following adress 
       <a href="http://localhost:3001/verifyAccount/${newOtp._id}">Verification</a>
-        to verify your email address and complete the signup<p>
-                <p>this code expires in 1 hours<p>`,
+        to verify your email address and complete the signup</p>
+                <p>This code expires in 1 hours.</p>
+                <p>If you are not the author of this, just ignore it</p>`,
     };
 
     await transporter.sendMail(mailOptions);

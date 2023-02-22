@@ -31,30 +31,24 @@ router.post("/password/Reset", (req, res) => {
 
 //ADD NEW PASSWORD
 
-router.post("/newPassword", async (req, res) => {
+router.post("/newPassword/:id", async (req, res) => {
   try {
     if (
-      !Checker.controlRequest(req.body, [
-        "otp",
-        "id",
-        "password",
-        "confirmPassword",
-      ])
+      !Checker.controlRequest(req.body, ["otp", "password", "confirmPassword"])
     )
       res.status(400).json({
         status: "Bad Request",
         message: "Wrong format are not allowed",
       });
-    const { otp, id, password, confirmPassword } = req.body;
-    if (!otp || !id || !password || !confirmPassword)
+    const { otp, password, confirmPassword } = req.body;
+    if (!otp || !password || !confirmPassword)
       res.status(400).json({
         status: "Bad Request",
         message: "Empty field are not allowed",
       });
-
     const user = await PasswordReset.verifyOtpAndChangePassword(
       otp,
-      id,
+      req.params.id,
       password,
       confirmPassword,
       res
@@ -91,7 +85,7 @@ router.post("/password/otpResend", async (req, res) => {
         status: "Bad Request",
         message: "Empty field are not allowed",
       });
-    await PasswordReset.deleteMany({ email });
+    await PasswordReset.deleteMany({ email: email });
     Password.sendOtpPasswordReset(email, res);
   } catch (error) {
     res.status(500).json({

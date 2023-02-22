@@ -1,5 +1,7 @@
 const mongoose = require("mongoose");
 const validator = require("validator");
+const bcrypt = require("bcryptjs");
+const User = require("./User");
 
 const passwordResetSchema = new mongoose.Schema({
   email: {
@@ -48,20 +50,23 @@ passwordResetSchema.statics.verifyOtpAndChangePassword = async (
   confirmPassword,
   res
 ) => {
-  if (!validator.equals(confirmPassword, password))
+  if (confirmPassword !== password)
     throw new Error("Your passwords must be the same !");
 
   const passwordReset = await PasswordReset.findById(id);
   if (!passwordReset) throw new Error("This account does not exist");
-
+  console.log("1");
   if (passwordReset.expiredAt < Date.now())
     throw new Error("Your otp have expired");
+  console.log("2");
 
   const isOtpValid = await bcrypt.compare(otp, passwordReset.otp);
   if (!isOtpValid) throw new Error("Invalid otp are not allowed");
+  console.log("3");
 
   const user = await User.findOne({ email: passwordReset.email });
   user.password = password;
+  console.log("4");
 
   const error = user.validateSync();
   if (error)
