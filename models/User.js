@@ -108,9 +108,6 @@ userSchema.methods.toJSON = function () {
   const user = this.toObject();
 
   delete user.password;
-  delete user.email;
-  delete user.updatedAt;
-  delete user.authTokens;
   delete user.__v;
 
   return user;
@@ -130,8 +127,11 @@ userSchema.methods.generateAuthTokenAndSaveUser = async function () {
   );
 
   this.authTokens.push({ authToken });
+
   await this.save();
-  return authToken;
+
+  const data = this;
+  return data;
 };
 
 userSchema.statics.findUser = async (email, password) => {

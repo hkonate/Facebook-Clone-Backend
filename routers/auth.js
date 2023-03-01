@@ -66,10 +66,10 @@ router.post("/login", async (req, res) => {
         status: "FORBIDDEN",
         message: "This account need to be verify.",
       });
-    const authToken = user.generateAuthTokenAndSaveUser();
+    const data = await user.generateAuthTokenAndSaveUser();
     res.status(200).json({
       status: "SUCCEED",
-      data: { user, authToken },
+      data,
     });
   } catch (error) {
     res.status(500).json({
@@ -81,7 +81,7 @@ router.post("/login", async (req, res) => {
 
 //LOGOUT ACCOUNT
 
-router.post("/user/logout", authentification, async (req, res) => {
+router.delete("/user/logout", authentification, async (req, res) => {
   try {
     req.user.authTokens = req.user.authTokens.filter(
       (authToken) => authToken.authToken !== req.authToken

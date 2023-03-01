@@ -12,7 +12,7 @@ router.post("/post/create", authentification, async (req, res) => {
         status: "Bad Request",
         message: "Empty fields are not allowed",
       });
-    else if (!Checker.controlRequest(req.body, ["desc"]))
+    else if (!Checker.controlRequest(req.body, ["desc", "img"]))
       res.status(400).json({
         status: "Bad Request",
         message: "Wrong format are not allowed",
@@ -46,11 +46,13 @@ router.get("/post/:id", authentification, async (req, res) => {
         status: "Bad Request",
         message: "Empty fields are not allowed",
       });
-    const post = await Post.findById(req.params.id);
-    if (post)
+    const posts = (await Post.find()).filter(
+      (post) => post.userId === req.params.id
+    );
+    if (posts)
       res.status(200).json({
         status: "SUCCEED",
-        data: post,
+        data: posts,
       });
     else
       res.status(404).json({
@@ -145,42 +147,30 @@ router.delete("/post/delete/:id", authentification, async (req, res) => {
 
 //like or dislike a post
 
-router.patch("/post/affinities/:id", authentification, async (req, res) => {
+router.post("/post/affinities/:id", async (req, res) => {
   try {
-    const { action } = req.body;
-    if (!action)
-      res.status(400).json({
-        status: "Bad Request",
-        message: "Empty fields are not allowed",
-      });
-    else if (!Checker.controlRequest(req.body, ["action"]))
-      res.status(400).json({
-        status: "Bad Request",
-        message: "Wrong format are not allowed",
-      });
+    console.log(post, "t");
     const post = await Post.findById(req.params.id);
-    if (action === "like") {
-      if (post.likes.includes(req.user._id)) res.status(202).json();
-      else {
-        post.likes.push(req.user._id.toString());
-        await post.save();
-        res.status(200).json({
-          status: "SUCCEED",
-          message: "The post has been liked",
-          data: post,
-        });
-      }
-    } else if (action === "unlike") {
-      if (!post.likes.includes(req.user._id)) res.status(202).json();
-      else {
-        post.likes = post.likes.filter((likeId) => likeId === req.user._id);
-        await post.save();
-        res.status(200).json({
-          status: "SUCCEED",
-          message: "The post has been disliked",
-          data: post,
-        });
-      }
+    console.log(post, "et");
+    if (post.likes.includes(req.user._id)) {
+      post.likes = post.likes.filter((likeId) => likeId === req.user._id);
+      console.log(post, "eto");
+      await post.save();
+      res.status(200).json({
+        status: "SUCCEED",
+        message: "The post has been disliked",
+        data: post,
+      });
+    } else if (!post.likes.includes(req.user._id)) {
+      console.log(post, "etop");
+      post.likes.push(req.user._id.toString());
+      await post.save();
+      console.log(post, "ju");
+      res.status(200).json({
+        status: "SUCCEED",
+        message: "The post has been liked",
+        data: post,
+      });
     } else
       res.status(400).json({
         status: "BAD REQUEST",
@@ -204,6 +194,7 @@ router.get("/feed", authentification, async (req, res) => {
         return Post.find({ userId: friendId });
       })
     );
+    console.log(userPosts);
     res.status(200).json({
       status: "SUCCEED",
       data: userPosts.concat(...friendPosts),

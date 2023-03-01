@@ -6,15 +6,21 @@ const Checker = require("../utils/controlRequest");
 
 //GET USER
 
-router.get("/user", authentification, (req, res) => {
+router.get("/user/:id", authentification, async (req, res) => {
   try {
+    const user = await User.findById(req.params.id);
+    if (!user)
+      res.status(404).json({
+        status: "NOT FOUND",
+        message: "This account does not exist",
+      });
     res.status(200).json({
       message: "SUCCEED",
-      data: req.user,
+      data: user,
     });
   } catch (error) {
     res.status(500).json({
-      status: "ERROR",
+      status: "EROR",
       error: error.message,
     });
   }
