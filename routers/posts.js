@@ -147,9 +147,10 @@ router.delete("/post/delete/:id", authentification, async (req, res) => {
 
 //like or dislike a post
 
-router.post("/post/affinities/:id", async (req, res) => {
+router.post("/post/affinities/:id", authentification, async (req, res) => {
   try {
-    console.log(post, "t");
+    const { postId } = req.body;
+    console.log(req.body, "s");
     const post = await Post.findById(req.params.id);
     console.log(post, "et");
     if (post.likes.includes(req.user._id)) {
@@ -194,7 +195,6 @@ router.get("/feed", authentification, async (req, res) => {
         return Post.find({ userId: friendId });
       })
     );
-    console.log(userPosts);
     res.status(200).json({
       status: "SUCCEED",
       data: userPosts.concat(...friendPosts),
