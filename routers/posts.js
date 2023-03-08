@@ -2,40 +2,70 @@ const router = require("express").Router();
 const Post = require("../models/Post");
 const authentification = require("../middlewares/authentification");
 const Checker = require("../utils/controlRequest");
+const fileUpload = require("express-fileupload");
+const cloudinary = require("cloudinary").v2;
+
+const convertToBase64 = (file) => {
+  return `data:${file.mimetype};base64,${file.data.toString("base64")}`;
+};
+
+cloudinary.config({
+  cloud_name: process.env.CLOUD_NAME,
+  api_key: process.env.API_KEY,
+  api_secret: process.env.API_SECRET,
+});
 
 //create a post
 
-router.post("/post/create", authentification, async (req, res) => {
-  try {
-    if (!req.body.desc)
-      res.status(400).json({
-        status: "Bad Request",
-        message: "Empty fields are not allowed",
+router.post(
+  "/post/create",
+  authentification,
+  fileUpload(),
+  async (req, res) => {
+    try {
+      if (!req.body.desc)
+        res.status(400).json({
+          status: "Bad Request",
+          message: "Empty fields are not allowed",
+        });
+      else if (!Checker.controlRequest(req.body, ["desc"]))
+        res.status(400).json({
+          status: "Bad Request",
+          message: "Wrong format are not allowed",
+        });
+      const newPost = new Post({
+        ...req.body,
+        userId: req.user._id.toString(),
       });
-    else if (!Checker.controlRequest(req.body, ["desc", "img"]))
-      res.status(400).json({
-        status: "Bad Request",
-        message: "Wrong format are not allowed",
+
+      const imgData = await cloudinary.uploader.upload(
+        convertToBase64(req.files.img),
+        {
+          folder: `facebook/users/${newPost.userId}/posts/`,
+          public_id: `${newPost.userId} - ${newPost._id}`,
+        }
+      );
+
+      newPost.img = imgData.secure_url;
+      const error = newPost.validateSync();
+      if (error)
+        res.status(400).json({
+          status: "Bad Request",
+          message: "Wrong format are not allowed",
+        });
+      await newPost.save();
+      res.status(200).json({
+        status: "SUCCEED",
+        data: newPost,
       });
-    const newPost = new Post({ ...req.body, userId: req.user._id.toString() });
-    const error = newPost.validateSync();
-    if (error)
-      res.status(400).json({
-        status: "Bad Request",
-        message: "Wrong format are not allowed",
+    } catch (error) {
+      res.status(500).json({
+        status: "ERROR",
+        error,
       });
-    await newPost.save();
-    res.status(200).json({
-      status: "SUCCEED",
-      data: newPost,
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: "ERROR",
-      error,
-    });
+    }
   }
-});
+);
 
 //get a post
 
@@ -118,6 +148,7 @@ router.patch("/post/update/:id", authentification, async (req, res) => {
 router.delete("/post/delete/:id", authentification, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
+
     if (!post)
       res.status(404).json({
         status: "NOT FOUND",
@@ -125,6 +156,9 @@ router.delete("/post/delete/:id", authentification, async (req, res) => {
       });
     //The user can only delete his post
     if (post.userId === req.user._id.toString()) {
+      await cloudinary.uploader.destroy(
+        `facebook/users/${post.userId}/posts/${post.userId} - ${post._id}`
+      );
       const data = await post.deleteOne();
       res.status(200).json({
         status: "SUCCEED",
@@ -149,13 +183,9 @@ router.delete("/post/delete/:id", authentification, async (req, res) => {
 
 router.post("/post/affinities/:id", authentification, async (req, res) => {
   try {
-    const { postId } = req.body;
-    console.log(req.body, "s");
     const post = await Post.findById(req.params.id);
-    console.log(post, "et");
     if (post.likes.includes(req.user._id)) {
       post.likes = post.likes.filter((likeId) => likeId === req.user._id);
-      console.log(post, "eto");
       await post.save();
       res.status(200).json({
         status: "SUCCEED",
@@ -163,10 +193,9 @@ router.post("/post/affinities/:id", authentification, async (req, res) => {
         data: post,
       });
     } else if (!post.likes.includes(req.user._id)) {
-      console.log(post, "etop");
       post.likes.push(req.user._id.toString());
       await post.save();
-      console.log(post, "ju");
+
       res.status(200).json({
         status: "SUCCEED",
         message: "The post has been liked",

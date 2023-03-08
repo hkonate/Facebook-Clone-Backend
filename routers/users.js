@@ -3,6 +3,7 @@ const User = require("../models/User");
 const authentification = require("../middlewares/authentification");
 const router = new express.Router();
 const Checker = require("../utils/controlRequest");
+const cloudinary = require("cloudinary").v2;
 
 //GET USER
 
@@ -157,6 +158,23 @@ router.patch("/user/connections", authentification, async (req, res) => {
 
 router.delete("/user/delete", authentification, async (req, res) => {
   try {
+    cloudinary.config({
+      cloud_name: process.env.CLOUD_NAME,
+      api_key: process.env.API_KEY,
+      api_secret: process.env.API_SECRET,
+    });
+    //delete user picture
+    await cloudinary.api.delete_resources_by_prefix(
+      `facebook/users/${req.user._id}/avatar`
+    );
+    await cloudinary.api.delete_folder(`facebook/users/${req.user._id}/avatar`);
+
+    //delete all posts
+    await cloudinary.api.delete_resources_by_prefix(
+      `facebook/users/${req.user._id}/posts`
+    );
+    await cloudinary.api.delete_folder(`facebook/users/${req.user._id}/posts`);
+    await cloudinary.api.delete_folder(`facebook/users/${req.user._id}`);
     await req.user.remove();
     res.status(200).json({
       status: "SUCCEED",
@@ -165,7 +183,7 @@ router.delete("/user/delete", authentification, async (req, res) => {
   } catch (error) {
     res.status(500).json({
       status: "ERROR",
-      error: error.message,
+      error: error,
     });
   }
 });

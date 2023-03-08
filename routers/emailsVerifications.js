@@ -26,13 +26,11 @@ router.post("/otpVerification/:id", async (req, res) => {
       res
     );
     await user.save();
+    await EmailVerification.deleteMany({ email: req.body.email });
     res.status(200).json({
       status: "SUCCEED",
       message: "Your email has been validate",
-      data: {
-        user,
-        deleteCount,
-      },
+      deleteCount,
     });
   } catch (error) {
     res.status(500).json({

@@ -4,10 +4,22 @@ const User = require("../models/User");
 const Email = require("../utils/otpVerificationEmail");
 const authentification = require("../middlewares/authentification");
 const Checker = require("../utils/controlRequest");
+const fileUpload = require("express-fileupload");
+const cloudinary = require("cloudinary").v2;
+
+const convertToBase64 = (file) => {
+  return `data:${file.mimetype};base64,${file.data.toString("base64")}`;
+};
+
+cloudinary.config({
+  cloud_name: process.env.CLOUD_NAME,
+  api_key: process.env.API_KEY,
+  api_secret: process.env.API_SECRET,
+});
 
 //REGISTER ACCOUNT
 
-router.post("/register", async (req, res) => {
+router.post("/register", fileUpload(), async (req, res) => {
   try {
     if (
       !Checker.controlRequest(req.body, [
@@ -19,20 +31,31 @@ router.post("/register", async (req, res) => {
         "password",
         "email",
         "confirmPassword",
-        "profilePicture",
-        "coverPicture",
       ])
     )
       res.status(400).json({
         status: "Bad Request",
         message: "Wrong format are not allowed",
       });
-
     if (req.body.confirmPassword !== req.body.password)
       throw new Error("Your passwords must be the same !");
+
     delete req.body.confirmPassword;
+
     const user = new User(req.body);
+
+    const avatar = await cloudinary.uploader.upload(
+      convertToBase64(req.files.img),
+      {
+        folder: `facebook/users/${user._id}/avatar`,
+        public_id: `${user.firstname} - ${user._id}`,
+      }
+    );
+
+    user.profilePicture = avatar.secure_url;
+
     let error = user.validateSync();
+
     if (error) {
       res.status(400).json({
         status: "Bad Request",

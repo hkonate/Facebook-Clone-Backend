@@ -55,18 +55,15 @@ passwordResetSchema.statics.verifyOtpAndChangePassword = async (
 
   const passwordReset = await PasswordReset.findById(id);
   if (!passwordReset) throw new Error("This account does not exist");
-  console.log("1");
+
   if (passwordReset.expiredAt < Date.now())
     throw new Error("Your otp have expired");
-  console.log("2");
 
   const isOtpValid = await bcrypt.compare(otp, passwordReset.otp);
   if (!isOtpValid) throw new Error("Invalid otp are not allowed");
-  console.log("3");
 
   const user = await User.findOne({ email: passwordReset.email });
   user.password = password;
-  console.log("4");
 
   const error = user.validateSync();
   if (error)
