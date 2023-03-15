@@ -3,7 +3,9 @@ const User = require("../models/User");
 const authentification = require("../middlewares/authentification");
 const router = new express.Router();
 const Checker = require("../utils/controlRequest");
+const fileUpload = require("express-fileupload");
 const cloudinary = require("cloudinary").v2;
+const Converter = require("../utils/convertToBase64");
 
 //GET USER
 
@@ -49,38 +51,85 @@ router.get("/users", authentification, async (req, res) => {
 
 //UPDATE USER INFOS
 
-router.patch("/user/update", authentification, async (req, res) => {
-  try {
-    const updateInfo = Object.keys(req.body);
-    if (
-      !Checker.controlRequest(req.body, [
-        "from",
-        "city",
-        "firstname",
-        "lastname",
-        "age",
-        "profilePicture",
-        "coverPicture",
-      ])
-    )
-      res.status(400).json({
-        status: "Bad Request",
-        message: "Wrong format are not allowed",
+router.patch(
+  "/user/update",
+  authentification,
+  fileUpload(),
+  async (req, res) => {
+    try {
+      const updateInfo = Object.keys(req.body);
+      const { coverPicture, profilePicture } = req.files;
+      if (
+        !Checker.controlRequest(req.body, [
+          "from",
+          "city",
+          "firstname",
+          "lastname",
+          "age",
+        ])
+      )
+        res.status(400).json({
+          status: "Bad Request",
+          message: "Wrong format are not allowed",
+        });
+
+      if (updateInfo.length === 0 && !coverPicture && !profilePicture)
+        res.status(400).json();
+      else {
+        if (updateInfo.length > 0)
+          updateInfo.forEach((update) => (req.user[update] = req.body[update]));
+
+        // Suppression de l'image existante dans Cloudinary
+        if (coverPicture || profilePicture) {
+          if (req.user.coverPicture) {
+            await cloudinary.uploader.destroy(
+              `facebook/users/${req.user._id}/cover/${req.user.firstname} - ${req.user._id}`
+            );
+            req.user.coverImage = undefined;
+          }
+          if (req.user.profileImage) {
+            await cloudinary.uploader.destroy(
+              `facebook/users/${req.user._id}/avatar/${req.user.firstname} - ${req.user._id}`
+            );
+            req.user.profileImage = undefined;
+          }
+        }
+
+        // Upload de la nouvelle image dans Cloudinary
+        if (coverPicture) {
+          const coverUploadResult = await cloudinary.uploader.upload(
+            Converter.convertToBase64(coverPicture),
+            {
+              folder: `facebook/users/${req.user._id}/cover`,
+              public_id: `${req.user.firstname} - ${req.user._id}`,
+            }
+          );
+          req.user.coverPicture = coverUploadResult.secure_url;
+        }
+
+        if (profilePicture) {
+          const profileUploadResult = await cloudinary.uploader.upload(
+            Converter.convertToBase64(profilePicture),
+            {
+              folder: `facebook/users/${req.user._id}/avatar`,
+              public_id: `${req.user.firstname} - ${req.user._id}`,
+            }
+          );
+          req.user.profilePicture = profileUploadResult.secure_url;
+        }
+
+        const data = await req.user.save();
+
+        res.status(200).json(data);
+      }
+    } catch (error) {
+      res.status(500).json({
+        status: "ERROR",
+        error: error,
       });
-    if (updateInfo.length === 0) res.status(202).json();
-    updateInfo.forEach((update) => (req.user[update] = req.body.update));
-    await req.user.save();
-    res.status(200).json({
-      status: "SUCCEED",
-      data: req.user,
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: "ERROR",
-      error: error.message,
-    });
+    }
   }
-});
+);
 
 //FOLLOW OR UNFOLLOW AN USER
 

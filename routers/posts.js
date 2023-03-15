@@ -4,10 +4,7 @@ const authentification = require("../middlewares/authentification");
 const Checker = require("../utils/controlRequest");
 const fileUpload = require("express-fileupload");
 const cloudinary = require("cloudinary").v2;
-
-const convertToBase64 = (file) => {
-  return `data:${file.mimetype};base64,${file.data.toString("base64")}`;
-};
+const Converter = require("../utils/convertToBase64");
 
 cloudinary.config({
   cloud_name: process.env.CLOUD_NAME,
@@ -39,7 +36,7 @@ router.post(
       });
 
       const imgData = await cloudinary.uploader.upload(
-        convertToBase64(req.files.img),
+        Converter.convertToBase64(req.files.img),
         {
           folder: `facebook/users/${newPost.userId}/posts/`,
           public_id: `${newPost.userId} - ${newPost._id}`,
