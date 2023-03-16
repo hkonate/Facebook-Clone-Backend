@@ -6,6 +6,11 @@ const Checker = require("../utils/controlRequest");
 const fileUpload = require("express-fileupload");
 const cloudinary = require("cloudinary").v2;
 const Converter = require("../utils/convertToBase64");
+cloudinary.config({
+  cloud_name: process.env.CLOUD_NAME,
+  api_key: process.env.API_KEY,
+  api_secret: process.env.API_SECRET,
+});
 
 //GET USER
 
@@ -34,13 +39,13 @@ router.get("/user/:id", authentification, async (req, res) => {
 router.get("/users", authentification, async (req, res) => {
   try {
     const users = (await User.find()).filter(
-      (user) => user._id === req.user._id && !user.verified
+      (user) =>
+        !user.followers.includes(req.user._id.toString()) &&
+        user.verified &&
+        user._id.toString() !== req.user._id.toString()
     );
-    res.status(200).json({
-      status: "SUCCEED",
-      count: users.length,
-      data: users,
-    });
+    const data = users;
+    res.status(200).json(data);
   } catch (error) {
     res.status(500).json({
       message: "ERROR",
@@ -207,24 +212,59 @@ router.patch("/user/connections", authentification, async (req, res) => {
 
 router.delete("/user/delete", authentification, async (req, res) => {
   try {
-    cloudinary.config({
-      cloud_name: process.env.CLOUD_NAME,
-      api_key: process.env.API_KEY,
-      api_secret: process.env.API_SECRET,
-    });
     //delete user picture
     await cloudinary.api.delete_resources_by_prefix(
       `facebook/users/${req.user._id}/avatar`
     );
-    await cloudinary.api.delete_folder(`facebook/users/${req.user._id}/avatar`);
+
+    const avatarResources = await cloudinary.search
+      .expression(`folder:facebook/users/${req.user._id}/avatar`)
+      .execute();
+
+    if (avatarResources.total_count === 1) {
+      await cloudinary.api.delete_folder(
+        `facebook/users/${req.user._id}/avatar`
+      );
+    }
+
+    //delete all covers
+    await cloudinary.api.delete_resources_by_prefix(
+      `facebook/users/${req.user._id}/cover`
+    );
+
+    const coverResources = await cloudinary.search
+      .expression(`folder:facebook/users/${req.user._id}/cover`)
+      .execute();
+
+    if (coverResources.total_count === 1) {
+      await cloudinary.api.delete_folder(
+        `facebook/users/${req.user._id}/cover`
+      );
+    }
 
     //delete all posts
     await cloudinary.api.delete_resources_by_prefix(
       `facebook/users/${req.user._id}/posts`
     );
-    await cloudinary.api.delete_folder(`facebook/users/${req.user._id}/posts`);
-    await cloudinary.api.delete_folder(`facebook/users/${req.user._id}`);
+
+    const postResources = await cloudinary.search
+      .expression(`folder:facebook/users/${req.user._id}/posts`)
+      .execute();
+
+    if (postResources.total_count === 1)
+      await cloudinary.api.delete_folder(
+        `facebook/users/${req.user._id.toString()}/posts`
+      );
+
+    const userResources = await cloudinary.search
+      .expression(`folder:facebook/users/${req.user._id}`)
+      .execute();
+
+    if (userResources.total_count === 0)
+      await cloudinary.api.delete_folder(`facebook/users/${req.user._id}`);
+
     await req.user.remove();
+
     res.status(200).json({
       status: "SUCCEED",
       data: req.user,
