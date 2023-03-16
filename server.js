@@ -8,7 +8,6 @@ mongoose.set("strictQuery", true);
 
 mongoose.connect(process.env.MONGODB_URL);
 
-const port = process.env.Port || 3338;
 app.use(cors());
 app.use(express.json());
 
@@ -35,6 +34,6 @@ app.get("*", (req, res) => {
   res.send("Ce chemin n'existe pas");
 });
 
-app.listen(port, (req, res) => {
+app.listen(process.env.PORT || 3338, (req, res) => {
   console.log(`Le serveur est connecté au port ${port}`);
 });
