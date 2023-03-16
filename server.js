@@ -35,5 +35,5 @@ app.get("*", (req, res) => {
 });
 
 app.listen(process.env.PORT || 3338, (req, res) => {
-  console.log(`Le serveur est connecté au port ${port}`);
+  console.log(`Le serveur est connecté au port ${process.env.PORT}`);
 });
